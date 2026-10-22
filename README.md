@@ -5,7 +5,7 @@
 
 - 方法/教程 → [`luanyujia-workbench`](https://github.com/mashanglinyu/luanyujia-workbench)
 - 个人站 → [luanyujia.pages.dev](https://luanyujia.pages.dev)
-- 本站（成品集市）→ [mydsh.xyz](https://mydsh.xyz)（上线中）
+- 本站（成品集市）→ [mydsh.xyz](https://mydsh.xyz) —— **持续更新中**：启动动画 / 界面主题 / 插件 / 技能 / MCP / 场景，每条都能单独装
 
 ## 目录
 
