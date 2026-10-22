@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-boot-anim",
   "version": "1.0.1",
-  "description": "启动动画选择器：在设置里多一个「启动动画」分区，点卡片切换工作台的启动画面（配置落 外壳\\data\\boot-animation.json，下次启动生效）。",
+  "description": "启动动画插件：在设置里多一个「启动动画」分区，点卡片切换工作台的启动画面（配置落 外壳\\data\\boot-animation.json，下次启动生效）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

@@ -5,10 +5,10 @@
   "items": [
     {
       "id": "boot-anim",
-      "title": "启动动画选择器（插件）",
+      "title": "启动动画插件",
       "category": "插件",
       "version": "1.0.1",
-      "summary": "装完设置里多一个「启动动画」分区，点卡片切换工作台启动画面，下次启动生效；当前只上线「经典」。",
+      "summary": "启动动画插件：装完设置里多一个「启动动画」分区，点卡片切换工作台启动画面，下次启动生效；当前只上线「经典」。",
       "author": "淋雨家",
       "license": "MIT",
       "compat": {
@@ -22,7 +22,7 @@
       },
       "updatedAt": "2026-10-22",
       "path": "插件/boot-anim",
-      "bytes": 54995
+      "bytes": 54983
     },
     {
       "id": "classic-whale",
