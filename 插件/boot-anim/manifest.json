@@ -1,0 +1,13 @@
+{
+  "id": "boot-anim",
+  "title": "启动动画选择器（插件）",
+  "category": "插件",
+  "version": "1.0.1",
+  "summary": "装完设置里多一个「启动动画」分区，点卡片切换工作台启动画面，下次启动生效；当前只上线「经典」。",
+  "author": "淋雨家",
+  "license": "MIT",
+  "compat": { "dsh": ">=0.2.1-rc.2", "shell": "需要外壳支持 boot-animation 契约（读 外壳\\data\\boot-animation.json）" },
+  "install": "把 src/ 复制到 引擎\\插件\\boot-anim\\；在 引擎\\.dsh\\profiles\\web\\cordis.patch.yml 里加 - id: boot-anim-host / name: dsh-plugin-boot-anim；重启引擎后进 设置 → 启动动画",
+  "preview": { "type": "jpg", "file": "preview.jpg" },
+  "updatedAt": "2026-10-22"
+}

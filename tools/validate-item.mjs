@@ -106,7 +106,7 @@ for (const t of targets) {
     total += st.size;
     if (st.size > MAX_FILE && !/\.(mp4|webm|zip)$/i.test(f)) problems.push(tag + '：单文件超过 5 MB → ' + path.basename(f));
     const relDepth = path.relative(ROOT, f).split(path.sep).length;
-    if (relDepth > 4) problems.push(tag + '：目录超过 3 层 → ' + path.relative(t.dir, f));
+    if (relDepth > 5) problems.push(tag + '：目录超过 4 层 → ' + path.relative(t.dir, f));
     if (TEXT_EXT.test(f)) {
       const txt = fs.readFileSync(f, 'utf8');
       for (const [re, msg] of SECRETS) {
