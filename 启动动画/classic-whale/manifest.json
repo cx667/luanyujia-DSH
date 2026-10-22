@@ -1,0 +1,13 @@
+{
+  "id": "classic-whale",
+  "title": "经典鲸鱼启动动画",
+  "category": "启动动画",
+  "version": "1.0.0",
+  "summary": "DSH 外壳的经典启动画面：鲸鱼 logo 呼吸漂浮 + 标题 + 阶段文字 + 渐变进度条，3.2 秒走完，单文件 HTML 双击就能看。",
+  "author": "淋雨家",
+  "license": "MIT",
+  "compat": { "dsh": ">=0.2.1-rc.2", "os": "any" },
+  "install": "双击 src/classic.html 直接预览；接进外壳时把动画层放进启动遮罩，进度条宽度交给真实加载进度",
+  "preview": { "type": "mp4", "file": "preview.mp4", "poster": "poster.jpg" },
+  "updatedAt": "2026-10-22"
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>经典启动动画 · 帧渲染</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#080a10}
+  .stage{
+    position:relative;width:100vw;height:100vh;display:grid;place-items:center;
+    background:radial-gradient(1100px 560px at 50% 38%, #141c2e 0%, #0c1018 55%, #080a10 100%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  .card{width:min(520px,86vw);display:flex;flex-direction:column;align-items:center;gap:12px}
+  .logo{
+    width:64px;height:64px;
+    background:url(whale.png) center/contain no-repeat;
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 0 rgba(79,140,255,0))}
+    50%{transform:translateY(-4px) scale(1.05);filter:drop-shadow(0 6px 18px rgba(79,140,255,.45))}
+  }
+  .title{font-size:18px;font-weight:800;letter-spacing:4px;color:#e8eaf0}
+  .stage-txt{font-size:13px;color:#8f9bb0;height:19px}
+  .bar{position:relative;width:100%;height:9px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+  .in{
+    height:100%;width:0;border-radius:5px;
+    background:linear-gradient(90deg,#4f8cff,#06e7e9,#4f8cff);background-size:200% 100%;
+    box-shadow:0 0 12px rgba(6,231,233,.55);
+    animation:flow 1.6s linear infinite;
+  }
+  @keyframes flow{0%{background-position:0 0}100%{background-position:200% 0}}
+  .bar::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+    transform:translateX(-100%);animation:sweep 1.9s ease-in-out infinite;
+  }
+  @keyframes sweep{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+  .meta{
+    width:100%;display:flex;justify-content:space-between;gap:10px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#6b7686;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="card">
+    <div class="logo"></div>
+    <div class="title">DeepSeek Harness</div>
+    <div class="stage-txt" id="stage">正在启动引擎…</div>
+    <div class="bar"><div class="in" id="barIn"></div></div>
+    <div class="meta"><span id="pct">0%</span><span id="detail">—</span></div>
+  </div>
+</div>
+<script>
+  // 时间轴：给定 t（秒），把整段动画渲染成那一刻的静止画面
+  function renderAt(t) {
+    t = Math.max(0, Number(t) || 0);
+
+    // 进度：0.3s 后开始，3.0s 走满
+    var p = Math.min(1, Math.max(0, (t - 0.3) / 3.0));
+    document.getElementById('barIn').style.width = (p * 100).toFixed(2) + '%';
+    document.getElementById('pct').textContent = Math.round(p * 100) + '%';
+
+    // 阶段文字
+    var stages = [
+      ['正在启动引擎…', 'port 3080'],
+      ['正在加载场景…', '11 个场景'],
+      ['正在连接模型…', 'deepseek-official'],
+      ['正在恢复会话…', '12 条记忆'],
+      ['就绪', 'DeepSeek Harness']
+    ];
+    var i = t < 1.05 ? 0 : t < 1.75 ? 1 : t < 2.45 ? 2 : t < 3.15 ? 3 : 4;
+    document.getElementById('stage').textContent = stages[i][0];
+    document.getElementById('detail').textContent = stages[i][1];
+
+    // CSS 动画冻结在 t 这一刻（录帧用）
+    var fz = document.getElementById('freeze');
+    if (fz) {
+      fz.textContent = '*{animation-delay:-' + t.toFixed(3) + 's !important;animation-play-state:paused !important}';
+    }
+  }
+  window.renderAt = renderAt;
+  window.addEventListener('load', function () {
+    var t0 = parseFloat(new URLSearchParams(location.search).get('t') || '0');
+    renderAt(t0);
+  });
+</script>
+<style id="freeze">*{animation-play-state:paused !important}</style>
+</body>
+</html>

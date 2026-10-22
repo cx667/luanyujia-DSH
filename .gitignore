@@ -1,0 +1,14 @@
+# 系统与临时文件
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 临时目录
+_tmp/
+_temp/
+*.tmp
+*.bak
+*~
+
+# 依赖
+node_modules/
