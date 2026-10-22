@@ -1,95 +1,83 @@
 /**
- * 启动动画插件 —— 主机侧（发布版）
+ * 启动动画插件 —— 主机侧。
  *
- * 与本地版的唯一区别：**清单来自插件自带的 catalog.json**，不再依赖外壳写出的 available。
- *   ⇒ 别人装上这个插件，设置里就会有一个「启动动画」分区，里面只列我正式上线的动画。
+ * 只做一件事：读写「外壳启动动画」的配置契约文件
+ *   <DSH 根>\外壳\data\boot-animation.json
+ *     { "id": "classic", "available": [ {id, name, desc}, ... ] }
  *
- * 契约（不变）：
- *   <DSH 根>\外壳\data\boot-animation.json   { "id": "classic", "available": [...] }
- *   - 外壳管播放：启动时读 id
- *   - 本插件管选择：只改 id，**保留**外壳写出的 available，免得把别人的清单覆盖掉
+ * 分工：**外壳管播放**（启动时读这个文件的 id）、**本插件管选择**（设置里的卡片）。
+ * ⇒ available 由外壳写全，本插件只读；以后外壳加动画，这里自动多一张卡。
  *
- * 可选环境变量：DSH_SHELL_DIR（外壳目录；不设则从 DSH_HOME 反推 <DSH 根>\外壳）
+ * 路由（前缀 /plugins/boot-anim）：
+ *   GET  /list    当前选择 + 可选清单
+ *   POST /select  {id}  写入选择（只保存，不预览）
+ *   POST /preview {id?}  只写预览触发文件，不改选择（id 省略=当前选择）
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 export const name = 'boot-anim-host'
 export const inject = ['webServer']
 
 const BASE = '/plugins/boot-anim'
-// 外壳目录：优先环境变量；否则从 DSH_HOME（引擎\.dsh）反推 <DSH根>\外壳；再不行用相对目录
-const DSH_HOME = process.env.DSH_HOME || ''
-const SHELL_DIR = process.env.DSH_SHELL_DIR
-  || (DSH_HOME ? path.resolve(DSH_HOME, '..', '..', '外壳') : '外壳')
+const SHELL_DIR = (() => {
+  // 可移植：优先环境变量，其次从 DSH_HOME 反推 <DSH 根>\外壳，最后退回相对目录
+  if (process.env.DSH_SHELL_DIR) return process.env.DSH_SHELL_DIR
+  if (process.env.DSH_HOME) return path.resolve(process.env.DSH_HOME, '..', '..', '外壳')
+  return path.resolve('外壳')
+})()
 const CFG = path.join(SHELL_DIR, 'data', 'boot-animation.json')
+/** 预览请求文件：外壳轮询它，发现 at 变新就播一遍（点切换即预览的通道）。 */
 const PREVIEW = path.join(SHELL_DIR, 'data', 'boot-preview.json')
 
-const HERE = path.dirname(fileURLToPath(import.meta.url))
-const CATALOG_FILE = path.resolve(HERE, '..', 'catalog.json')
-
-/** 兜底：catalog.json 丢了也要能用（经典是外壳内置的，必然支持） */
+/** 兜底清单：外壳还没实现注册表时，也让设置面板有东西可显示。 */
 const FALLBACK = [
-  { id: 'classic', name: '经典', desc: '鲸鱼 logo + 标题 + 阶段文字 + 进度条（外壳默认启动画面）' },
+  { id: 'classic', name: '线条睁眼鲸鱼', desc: '鲸鱼 logo + 标题 + 阶段文字 + 进度条（默认）' },
 ]
 
-function readCatalog() {
-  try {
-    const j = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8').replace(/^\uFEFF/, ''))
-    const items = (Array.isArray(j.items) ? j.items : []).filter((x) => x && x.id)
-    if (items.length) return items
-  } catch (e) { /* 走兜底 */ }
-  return FALLBACK
-}
-
-function readShellCfg() {
-  try {
-    return JSON.parse(fs.readFileSync(CFG, 'utf8').replace(/^\uFEFF/, ''))
-  } catch (e) {
-    return null
-  }
-}
-
 function readCfg() {
-  const items = readCatalog()
-  const ids = items.map((x) => x.id)
-  const shell = readShellCfg() || {}
-  const current = ids.indexOf(shell.id) >= 0 ? shell.id : ids[0]
-  return {
-    ok: true,
-    current,
-    available: items,
-    published: ids,
-    source: CFG,
-    shellDetected: !!shell.id,
+  try {
+    const t = fs.readFileSync(CFG, 'utf8').replace(/^\uFEFF/, '')
+    const j = JSON.parse(t)
+    const avail = Array.isArray(j.available) && j.available.length ? j.available : FALLBACK
+    const ids = avail.map((x) => x && x.id).filter(Boolean)
+    const current = ids.indexOf(j.id) >= 0 ? j.id : (ids[0] || 'classic')
+    return { ok: true, current, available: avail, source: CFG }
+  } catch (e) {
+    return { ok: true, current: 'classic', available: FALLBACK, source: CFG, fallback: String(e && e.message || e).slice(0, 120) }
   }
 }
 
 function writeCfg(id) {
-  const items = readCatalog()
-  if (!items.some((x) => x.id === id)) {
-    return { ok: false, err: '未上线的动画：' + id, available: items.map((x) => x.id) }
-  }
-
-  // 保留外壳写的 available（别人的动画清单），只改 id
-  const shell = readShellCfg() || {}
-  const body = JSON.stringify(Object.assign({}, shell, { id }), null, 2) + '\n'
+  const cur = readCfg()
+  const avail = cur.available
+  const ids = avail.map((x) => x && x.id).filter(Boolean)
+  if (ids.indexOf(id) < 0) return { ok: false, err: '不认识的动画 id：' + id, available: ids }
+  const body = JSON.stringify({ id, available: avail }, null, 2) + '\n'
   fs.mkdirSync(path.dirname(CFG), { recursive: true })
   const tmp = CFG + '.tmp'
   fs.writeFileSync(tmp, body, 'utf8')
   fs.renameSync(tmp, CFG)   // 原子落盘
-
-  // 点选即预览：外壳轮询 boot-preview.json，看到 at 变新就播一遍
-  try {
-    const pv = { id, at: Date.now(), by: 'boot-anim-plugin' }
-    const ptmp = PREVIEW + '.tmp'
-    fs.writeFileSync(ptmp, JSON.stringify(pv) + '\n', 'utf8')
-    fs.renameSync(ptmp, PREVIEW)
-  } catch (e) { /* 预览通道不可用不影响保存 */ }
-
   return { ok: true, current: id }
+}
+
+/**
+ * 只触发预览，不改选择。
+ * 契约文件：外壳 renderers.js 轮询 `boot-preview.json`，发现 at 变新就播一遍 id。
+ * 客户端 top「预览当前」走这里；卡片点选不再自动预览。
+ */
+function writePreview(id) {
+  const cur = readCfg()
+  const ids = cur.available.map((x) => x && x.id).filter(Boolean)
+  const target = String(id || cur.current || '')
+  if (!target || ids.indexOf(target) < 0) return { ok: false, err: '不认识的动画 id：' + (target || '(空)'), available: ids }
+  const pv = { id: target, at: Date.now(), by: 'boot-anim-plugin' }
+  fs.mkdirSync(path.dirname(PREVIEW), { recursive: true })
+  const ptmp = PREVIEW + '.tmp'
+  fs.writeFileSync(ptmp, JSON.stringify(pv) + '\n', 'utf8')
+  fs.renameSync(ptmp, PREVIEW)
+  return { ok: true, id: target, at: pv.at, path: PREVIEW }
 }
 
 function sendJson(res, code, obj) {
@@ -106,8 +94,7 @@ function readBody(req) {
   })
 }
 
-export function apply(ctx) {
-  ctx.effect(() =>
+export function apply(ctx) {  ctx.effect(() =>
     ctx.webServer.register({
       kind: 'prefix',
       path: BASE,
@@ -125,7 +112,15 @@ export function apply(ctx) {
           try { id = String(JSON.parse(raw || '{}').id || '') } catch (e) { id = '' }
           if (!id) return sendJson(res, 400, { ok: false, err: '缺少 id' })
           const r = writeCfg(id)
-          return sendJson(res, r.ok ? 200 : 404, r)
+          return sendJson(res, r.ok ? 200 : 400, r)
+        }
+
+        if (pathname === BASE + '/preview' && method === 'POST') {
+          const raw = await readBody(req)
+          let id = ''
+          try { id = String(JSON.parse(raw || '{}').id || '') } catch (e) { id = '' }
+          const r = writePreview(id)
+          return sendJson(res, r.ok ? 200 : 400, r)
         }
 
         return sendJson(res, 404, { ok: false, err: '未知路径：' + pathname })
@@ -133,3 +128,7 @@ export function apply(ctx) {
     }),
   )
 }
+
+// 给自测/打包校验用（不改变插件运行时行为）。
+export { writeCfg, writePreview }
+

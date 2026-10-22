@@ -7,22 +7,22 @@
       "id": "boot-anim",
       "title": "启动动画插件",
       "category": "插件",
-      "version": "1.0.1",
-      "summary": "启动动画插件：装完设置里多一个「启动动画」分区，点卡片切换工作台启动画面，下次启动生效；当前只上线「经典」。",
+      "version": "1.1.0",
+      "summary": "装完「设置 → 启动动画」多一个分区：列出外壳支持的全部启动动画，点卡片切换（下次启动生效），右上「▶ 预览当前」立刻整窗播放一遍。卡片点选不再自动预览。",
       "author": "淋雨家",
       "license": "MIT",
       "compat": {
         "dsh": ">=0.2.1-rc.2",
-        "shell": "需要外壳支持 boot-animation 契约（读 外壳\\data\\boot-animation.json）"
+        "shell": "需要外壳支持启动动画契约：启动读 外壳\\data\\boot-animation.json 的 id；预览轮询 外壳\\data\\boot-preview.json。外壳没实现时插件不报错，只显示「经典」兜底项。"
       },
-      "install": "把 src/ 复制到 引擎\\插件\\boot-anim\\；在 引擎\\.dsh\\profiles\\web\\cordis.patch.yml 里加 - id: boot-anim-host / name: dsh-plugin-boot-anim；重启引擎后进 设置 → 启动动画",
+      "install": "把 src/ 整个复制到 引擎\\插件\\boot-anim\\；在 引擎\\.dsh\\profiles\\web\\cordis.patch.yml 加 - id: boot-anim-host / name: dsh-plugin-boot-anim；重启引擎 → 设置 → 启动动画。外壳目录默认从 DSH_HOME 反推，不在默认结构就设 DSH_SHELL_DIR。",
       "preview": {
         "type": "jpg",
         "file": "preview.jpg"
       },
       "updatedAt": "2026-10-22",
       "path": "插件/boot-anim",
-      "bytes": 54983
+      "bytes": 95093
     },
     {
       "id": "classic-whale",

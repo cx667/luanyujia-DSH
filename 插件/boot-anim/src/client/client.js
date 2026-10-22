@@ -45,12 +45,22 @@ window.__ModuleLoader__.load({
       badge: { fontSize: '10.5px', padding: '0 6px', borderRadius: '999px', border: '1px solid currentColor', opacity: 0.85, marginLeft: '6px' },
       hint: { marginTop: '12px', fontSize: '12px', color: 'var(--dsw-alias-text-tertiary, #6b7383)' },
       err: { marginTop: '10px', fontSize: '12px', color: 'var(--dsw-alias-state-error-primary, #ff5d5d)' },
+      top: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' },
+      btn: {
+        flex: 'none', padding: '7px 12px', borderRadius: '9px', cursor: 'pointer',
+        border: '1px solid var(--dsw-alias-state-business-primary, #4f8cff)',
+        background: 'var(--dsw-alias-bg-layer-2, #1b1e26)',
+        color: 'var(--dsw-alias-state-business-primary, #4f8cff)',
+        fontSize: '12.5px', fontWeight: 600,
+      },
+      btnOff: { opacity: 0.5, cursor: 'default' },
     };
 
     function Section() {
       var _a = useState(null), data = _a[0], setData = _a[1];
       var _b = useState(''), saving = _b[0], setSaving = _b[1];
       var _c = useState(''), err = _c[0], setErr = _c[1];
+      var _d = useState(false), previewing = _d[0], setPreviewing = _d[1];
 
       function load() {
         fetch(API + '/list', { cache: 'no-store' })
@@ -77,13 +87,41 @@ window.__ModuleLoader__.load({
           .catch(function (e) { setSaving(''); setErr('切换失败：' + String(e && e.message || e)); });
       }
 
+      // 2026-10-22 宿主：预览只由「▶ 预览当前」触发；卡片点击只切换，不预览。
+      // 服务端 /preview 只写 boot-preview.json，不改当前选择。
+      function previewCurrent() {
+        if (previewing || saving || !current) return;
+        setPreviewing(true); setErr('');
+        fetch(API + '/preview', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: current }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            setPreviewing(false);
+            if (!j || !j.ok) setErr('预览失败：' + ((j && j.err) || '未知错误'));
+          })
+          .catch(function (e) { setPreviewing(false); setErr('预览失败：' + String(e && e.message || e)); });
+      }
+
       var list = (data && data.available) || [];
       var current = data && data.current;
 
       return h('div', { style: S.wrap },
-        h('div', { style: S.h1 }, '启动动画'),
-        h('div', { style: S.sub },
-          '点一张卡片切换 —— **下次启动工作台生效**（启动画面在界面之前，没法当场换）。'),
+        h('div', { style: S.top },
+          h('div', null,
+            h('div', { style: S.h1 }, '启动动画'),
+            h('div', { style: Object.assign({}, S.sub, { marginBottom: 0 }) },
+              '点卡片只切换（下次启动生效）；要现在看效果，点右上「▶ 预览当前」。')),
+          h('button', {
+            type: 'button',
+            onClick: previewCurrent,
+            disabled: previewing || !current || !!saving,
+            style: Object.assign({}, S.btn, (previewing || !current || !!saving) ? S.btnOff : null),
+            title: '把 boot-preview.json 写给外壳，立即整窗播放当前动画（不改配置）',
+          }, previewing ? '▶ 预览中…' : '▶ 预览当前'),
+        ),
         h('div', { style: S.grid },
           list.map(function (it) {
             var on = it.id === current;
