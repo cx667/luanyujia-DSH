@@ -6,7 +6,7 @@
 // compat.dsh 就是回答它的唯一机器可读字段；没有它就只能读 README 猜。
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CATS = ['启动动画', '界面与主题', '插件', '技能', 'MCP', '场景', '其他'];
@@ -56,13 +56,18 @@ export function satisfies(version, range) {
     if (!terms.length) return true;
     // npm 规则：区间里没写 prerelease 时，不匹配任何 prerelease 版本
     // （否则 ">=0.2.0" 会把 "0.3.0-rc.1" 判成可用）
+    // 注意：区间本身写错（如 ">=0.2.x"）不能被这条规则吞掉，要留给下面的 every 抛错
     if (vp && vp.pre) {
-      const partHasPre = terms.some((t) => {
+      let partHasPre = false;
+      let invalid = false;
+      for (const t of terms) {
         const m = /^(>=|<=|>|<|=|\^|~)?(.*)$/.exec(t);
-        const p = parseVersion(m && m[2] !== undefined ? m[2] : t);
-        return !!(p && p.pre);
-      });
-      if (!partHasPre) return false;
+        const raw = m && m[2] !== undefined ? m[2] : t;
+        const p = parseVersion(raw);
+        if (!p) { invalid = true; break; }
+        if (p.pre) partHasPre = true;
+      }
+      if (!invalid && !partHasPre) return false;
     }
     return terms.every((t) => {
       let op = '=';
@@ -91,6 +96,8 @@ export function satisfies(version, range) {
 }
 
 // ---------- 校验 ----------
+// 做成函数并只在「直接运行」时执行，这样 tools/validate-compat.test.mjs 可以直接 import 里面的 semver 函数做单测
+export function main(argv = process.argv) {
 const problems = [];
 const warnings = [];
 const rows = [];
@@ -148,9 +155,9 @@ else console.log('✅ compat 形状全部通过（' + targets.length + ' 个条�
 if (warnings.length) { console.log('⚠ ' + warnings.length + ' 条提醒：'); warnings.forEach((w) => console.log('  · ' + w)); }
 
 // ---------- 可选：按某个 DSH 版本分两份清单 ----------
-const ver = process.argv[2];
+const ver = argv[2];
 if (ver) {
-  if (!parseVersion(ver)) { console.error('\n版本号不合法：' + ver); process.exit(2); }
+  if (!parseVersion(ver)) { console.error('\n版本号不合法：' + ver); return 2; }
   const yes = [], no = [], unknown = [];
   for (const t of targets) {
     const mf = path.join(t.dir, 'manifest.json');
@@ -169,4 +176,10 @@ if (ver) {
   if (unknown.length > 20) console.log('  …还有 ' + (unknown.length - 20) + ' 条');
 }
 
-process.exit(problems.length ? 1 : 0);
+return problems.length ? 1 : 0;
+}
+
+// 只在直接运行时跑 CLI；被 import（比如单测）时不执行、不 process.exit
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  process.exit(main());
+}
