@@ -12,12 +12,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CATS = ['启动动画', '界面与主题', '插件', '技能', 'MCP', '场景', '其他'];
 
 // ---------- 极简 semver：够判 DSH 的 ">=0.2.1-rc.2 <0.2.2" 这种区间 ----------
-const VRE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
+// 允许 2 段写法（`~1.2`），缺的段按 0 补：1.2 → 1.2.0
+const VRE = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/;
 
 export function parseVersion(s) {
   const m = VRE.exec(String(s).trim());
   if (!m) return null;
-  return { major: +m[1], minor: +m[2], patch: +m[3], pre: m[4] || '' };
+  return { major: +m[1], minor: +(m[2] || 0), patch: +(m[3] || 0), pre: m[4] || '' };
 }
 
 function cmpPre(a, b) {
@@ -49,9 +50,20 @@ export function compare(a, b) {
 export function satisfies(version, range) {
   const r = String(range).trim();
   if (!r || r === '*' || r === 'any') return true;
+  const vp = parseVersion(version);
   return r.split('||').some((part) => {
     const terms = part.trim().split(/\s+/).filter(Boolean);
     if (!terms.length) return true;
+    // npm 规则：区间里没写 prerelease 时，不匹配任何 prerelease 版本
+    // （否则 ">=0.2.0" 会把 "0.3.0-rc.1" 判成可用）
+    if (vp && vp.pre) {
+      const partHasPre = terms.some((t) => {
+        const m = /^(>=|<=|>|<|=|\^|~)?(.*)$/.exec(t);
+        const p = parseVersion(m && m[2] !== undefined ? m[2] : t);
+        return !!(p && p.pre);
+      });
+      if (!partHasPre) return false;
+    }
     return terms.every((t) => {
       let op = '=';
       let v = t;
@@ -97,6 +109,18 @@ function checkManifest(tag, m) {
   }
   if (c.os !== undefined && typeof c.os !== 'string' && !Array.isArray(c.os)) problems.push(tag + '：compat.os 必须是字符串或数组');
   if (c.shell !== undefined && typeof c.shell !== 'string') problems.push(tag + '：compat.shell 必须是字符串');
+  // 取值白名单：写错字（"windwos"）不报错的话，用户会以为声明有效。
+  // 注意：`shell` 在规范里是自由文本（说明「要外壳支持什么契约」），只校验类型，不做枚举。
+  const OS_OK = new Set(['win32', 'darwin', 'linux', 'any']);
+  const ARCH_OK = new Set(['x64', 'arm64', 'ia32', 'arm', 'any']);
+  const checkEnum = (field, value, okSet) => {
+    const vals = Array.isArray(value) ? value : [value];
+    for (const v of vals) {
+      if (typeof v !== 'string' || !okSet.has(v)) problems.push(tag + '：compat.' + field + ' 里有不认识的取值 ' + JSON.stringify(v) + '（允许：' + [...okSet].join('/') + '）');
+    }
+  };
+  if (c.os !== undefined && (typeof c.os === 'string' || Array.isArray(c.os))) checkEnum('os', c.os, OS_OK);
+  if (c.arch !== undefined && (typeof c.arch === 'string' || Array.isArray(c.arch))) checkEnum('arch', c.arch, ARCH_OK);
   return c;
 }
 
